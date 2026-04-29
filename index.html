@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pattern Window Simulator</title>
+
+  <style>
+    body {
+      background: #0b0b0b;
+      color: white;
+      font-family: Arial;
+      text-align: center;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 6px;
+      font-size: 14px;
+    }
+
+    .range {
+      color: #00ff88;
+      font-weight: bold;
+    }
+
+    .low { color: #00bfff; }
+    .med { color: #a020f0; }
+    .high { color: #ff4da6; }
+
+    /* LOCKSCREEN */
+    #lockscreen {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      background: black;
+      top: 0;
+      left: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 9999;
+    }
+
+    #error {
+      color: red;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- LOCKSCREEN -->
+<div id="lockscreen">
+  <h2>🔐 Enter Passcode</h2>
+  <input 
+    type="password" 
+    id="passcode" 
+    placeholder="Enter passcode"
+    autocomplete="off"
+  >
+  <button onclick="unlock()">Unlock</button>
+  <div id="error"></div>
+</div>
+
+<!-- APP -->
+<h2>📊 Pattern Window Simulator</h2>
+<p>Enter ONE signal → get next 5 volatility windows</p>
+
+<input type="text" id="time" placeholder="HH:MM:SS">
+<input type="number" id="spike" placeholder="Spike (e.g. 2.3)" step="0.01">
+
+<br>
+<button onclick="generate()">Generate</button>
+
+<div id="result"></div>
+
+<script>
+
+// 🔐 PASSCODE (your updated one)
+const PASS = "colsnist";
+
+// Autofocus on load
+window.onload = () => {
+  document.getElementById("passcode").focus();
+};
+
+// Unlock function
+function unlock(){
+  const field = document.getElementById("passcode");
+  const input = field.value.trim();
+
+  if(input === PASS){
+    document.getElementById("lockscreen").style.display = "none";
+  } else {
+    document.getElementById("error").innerText = "Wrong passcode";
+    field.value = ""; // clear wrong input
+    field.focus();
+  }
+}
+
+// Press ENTER to unlock
+document.getElementById("passcode").addEventListener("keydown", function(e){
+  if(e.key === "Enter"){
+    unlock();
+  }
+});
+
+// ---------- TIME ----------
+function parseTime(t){
+  let [h,m,s] = t.split(":").map(Number);
+  return {h,m,s};
+}
+
+function format(h,m,s){
+  if(s >= 60){ m += Math.floor(s/60); s%=60; }
+  if(m >= 60){ h += Math.floor(m/60); m%=60; }
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ---------- LOGIC ----------
+function getVol(spike){
+  if(spike < 2) return "low";
+  if(spike < 5) return "med";
+  return "high";
+}
+
+function makeRange(vol){
+  if(vol === "low"){
+    return (1 + Math.random()*2).toFixed(1) + "x – " + (2.5 + Math.random()*3).toFixed(1) + "x";
+  }
+  if(vol === "med"){
+    return (2 + Math.random()*3).toFixed(1) + "x – " + (8 + Math.random()*6).toFixed(1) + "x";
+  }
+  return (5 + Math.random()*10).toFixed(1) + "x – " + (20 + Math.random()*40).toFixed(1) + "x";
+}
+
+// ---------- MAIN ----------
+function generate(){
+  let t = document.getElementById("time").value;
+  let s = parseFloat(document.getElementById("spike").value);
+
+  if(!t || isNaN(s)){
+    alert("Enter valid time + spike");
+    return;
+  }
+
+  let time = parseTime(t);
+  let vol = getVol(s);
+  let output = [];
+
+  for(let i=1;i<=5;i++){
+    let h = time.h;
+    let m = time.m + (i*2);
+    let sec = time.s;
+
+    output.push(`
+      <p class="${vol}">
+        Window ${i}: <b class="range">${makeRange(vol)}</b><br>
+        Time: ${format(h,m,sec)} – ${format(h,m+2,sec)}
+      </p>
+    `);
+  }
+
+  document.getElementById("result").innerHTML = `
+    <h3>📡 Future Windows</h3>
+    <p>Pattern: <b>${vol.toUpperCase()}</b></p>
+    ${output.join("")}
+  `;
+}
+
+</script>
+
+</body>
+</html>
