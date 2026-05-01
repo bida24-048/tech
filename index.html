@@ -9,22 +9,44 @@
       color: white;
       font-family: Arial;
       text-align: center;
+      padding: 20px;
     }
 
     input, button {
       padding: 10px;
       margin: 6px;
       font-size: 14px;
+      border-radius: 6px;
+      border: none;
+    }
+
+    input {
+      width: 150px;
+    }
+
+    button {
+      background: #00ff88;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #00cc6a;
     }
 
     .range {
       color: #00ff88;
       font-weight: bold;
+      font-size: 16px;
     }
 
     .low { color: #00bfff; }
     .med { color: #a020f0; }
     .high { color: #ff4da6; }
+
+    #result {
+      margin-top: 20px;
+    }
 
     /* LOCKSCREEN */
     #lockscreen {
@@ -64,8 +86,8 @@
 </div>
 
 <!-- APP -->
-<h2>📊 Pattern Window Simulator</h2>
-<p>Enter ONE signal → get next 5 volatility windows</p>
+<h6>Lizzy M</h6>
+<p>PROBABILITY CALCULATOR</p>
 
 <input type="text" id="time" placeholder="HH:MM:SS">
 <input type="number" id="spike" placeholder="Spike (e.g. 2.3)" step="0.01">
@@ -77,86 +99,118 @@
 
 <script>
 
-// 🔐 PASSCODE (your updated one)
+// 🔐 PASSCODE
 const PASS = "colsnist";
 
-// Autofocus on load
+// Autofocus
 window.onload = () => {
   document.getElementById("passcode").focus();
 };
 
-// Unlock function
+// Unlock
 function unlock(){
   const field = document.getElementById("passcode");
   const input = field.value.trim();
 
   if(input === PASS){
     document.getElementById("lockscreen").style.display = "none";
+    document.getElementById("time").focus();
   } else {
     document.getElementById("error").innerText = "Wrong passcode";
-    field.value = ""; // clear wrong input
+    field.value = "";
     field.focus();
   }
 }
 
-// Press ENTER to unlock
+// ENTER key
 document.getElementById("passcode").addEventListener("keydown", function(e){
-  if(e.key === "Enter"){
-    unlock();
-  }
+  if(e.key === "Enter") unlock();
 });
 
 // ---------- TIME ----------
 function parseTime(t){
-  let [h,m,s] = t.split(":").map(Number);
-  return {h,m,s};
+  let parts = t.split(":").map(Number);
+  if(parts.length !== 3 || parts.some(isNaN)) return null;
+  return {h:parts[0], m:parts[1], s:parts[2]};
 }
 
 function format(h,m,s){
   if(s >= 60){ m += Math.floor(s/60); s%=60; }
   if(m >= 60){ h += Math.floor(m/60); m%=60; }
+  h = h % 24;
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
-// ---------- LOGIC ----------
+// ---------- VOLATILITY ----------
 function getVol(spike){
   if(spike < 2) return "low";
   if(spike < 5) return "med";
   return "high";
 }
 
+// realistic transitions
+function nextVol(current){
+  const r = Math.random();
+
+  if(current === "high"){
+    if(r < 0.5) return "high";
+    if(r < 0.8) return "med";
+    return "low";
+  }
+
+  if(current === "med"){
+    if(r < 0.4) return "med";
+    if(r < 0.7) return "high";
+    return "low";
+  }
+
+  if(r < 0.5) return "low";
+  if(r < 0.85) return "med";
+  return "high";
+}
+
+// ---------- RANGES ----------
 function makeRange(vol){
   if(vol === "low"){
-    return (1 + Math.random()*2).toFixed(1) + "x – " + (2.5 + Math.random()*3).toFixed(1) + "x";
+    return `${(1 + Math.random()*2).toFixed(1)}x – ${(2.5 + Math.random()*3).toFixed(1)}x`;
   }
   if(vol === "med"){
-    return (2 + Math.random()*3).toFixed(1) + "x – " + (8 + Math.random()*6).toFixed(1) + "x";
+    return `${(2 + Math.random()*3).toFixed(1)}x – ${(8 + Math.random()*6).toFixed(1)}x`;
   }
-  return (5 + Math.random()*10).toFixed(1) + "x – " + (20 + Math.random()*40).toFixed(1) + "x";
+  return `${(5 + Math.random()*10).toFixed(1)}x – ${(20 + Math.random()*40).toFixed(1)}x`;
 }
 
 // ---------- MAIN ----------
 function generate(){
-  let t = document.getElementById("time").value;
+  let t = document.getElementById("time").value.trim();
   let s = parseFloat(document.getElementById("spike").value);
 
-  if(!t || isNaN(s)){
-    alert("Enter valid time + spike");
+  let time = parseTime(t);
+
+  if(!time){
+    alert("Invalid time format (HH:MM:SS)");
     return;
   }
 
-  let time = parseTime(t);
-  let vol = getVol(s);
+  if(isNaN(s) || s <= 0){
+    alert("Enter valid spike number");
+    return;
+  }
+
+  let currentVol = getVol(s);
   let output = [];
 
   for(let i=1;i<=5;i++){
+
+    currentVol = nextVol(currentVol);
+
     let h = time.h;
     let m = time.m + (i*2);
     let sec = time.s;
 
     output.push(`
-      <p class="${vol}">
-        Window ${i}: <b class="range">${makeRange(vol)}</b><br>
+      <p class="${currentVol}">
+        Window ${i}: <span class="range">${makeRange(currentVol)}</span><br>
         Time: ${format(h,m,sec)} – ${format(h,m+2,sec)}
       </p>
     `);
@@ -164,7 +218,7 @@ function generate(){
 
   document.getElementById("result").innerHTML = `
     <h3>📡 Future Windows</h3>
-    <p>Pattern: <b>${vol.toUpperCase()}</b></p>
+    <p>Start Pattern: <b class="${getVol(s)}">${getVol(s).toUpperCase()}</b></p>
     ${output.join("")}
   `;
 }
